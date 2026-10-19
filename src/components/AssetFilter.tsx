@@ -497,6 +497,12 @@ function AssetFilter({
     setAddingCustom(false);
   }, [customCode, customIssuer, customAssets]);
 
+  // ── Derived focused index clamped to filtered list ─────────────────────────
+  const effectiveFocusedIndex =
+    filtered.length === 0
+      ? -1
+      : Math.max(-1, Math.min(focusedIndex, filtered.length - 1));
+
   // ── Keyboard navigation ────────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -515,7 +521,8 @@ function AssetFilter({
         case "ArrowDown":
           e.preventDefault();
           setFocusedIndex((prev) => {
-            const next = clamp(prev + 1);
+            const current = effectiveFocusedIndex >= 0 ? effectiveFocusedIndex : prev;
+            const next = clamp(current + 1);
             scrollIntoView(next);
             return next;
           });
@@ -523,7 +530,8 @@ function AssetFilter({
         case "ArrowUp":
           e.preventDefault();
           setFocusedIndex((prev) => {
-            const next = clamp(prev - 1);
+            const current = effectiveFocusedIndex >= 0 ? effectiveFocusedIndex : prev;
+            const next = clamp(current - 1);
             scrollIntoView(next);
             return next;
           });
@@ -539,9 +547,9 @@ function AssetFilter({
           scrollIntoView(filtered.length - 1);
           break;
         case "Enter":
-          if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+          if (effectiveFocusedIndex >= 0 && effectiveFocusedIndex < filtered.length) {
             e.preventDefault();
-            onSelect?.(filtered[focusedIndex]);
+            onSelect?.(filtered[effectiveFocusedIndex]);
           }
           break;
         case "Escape":
@@ -551,7 +559,7 @@ function AssetFilter({
           break;
       }
     },
-    [filtered, focusedIndex, onSelect],
+    [filtered, effectiveFocusedIndex, onSelect],
   );
 
   // Issue #664: move focus into the sort popover and trap Tab / Escape inside it.
@@ -624,7 +632,6 @@ function AssetFilter({
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setFocusedIndex(0);
             onPageReset?.();
           }}
           onKeyDown={handleKeyDown}
@@ -821,7 +828,7 @@ function AssetFilter({
                 isFavorite={isFav(asset)}
                 onFavoriteToggle={toggleFavorite}
                 onSelect={onSelect}
-                isFocused={index === focusedIndex}
+                isFocused={index === effectiveFocusedIndex}
               />
             ),
           )

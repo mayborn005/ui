@@ -37,3 +37,24 @@ export function computeBudgetBreakdown(
       .sort((a, b) => b.amount - a.amount),
   };
 }
+
+/**
+ * Format an ISO timestamp as a calendar date in UTC ("Jan 1, 2026"). Always
+ * UTC so the output never shifts a day for users west of Greenwich.
+ */
+export function formatUtcDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+/** Convert an XLM amount to USD at `rate` (USD per 1 XLM), rounded to cents. */
+export function convertXlmToUsd(xlm: number, rate: number): number {
+  if (!Number.isFinite(xlm) || !Number.isFinite(rate) || xlm < 0 || rate < 0) return 0;
+  return Math.round(xlm * rate * 100) / 100;
+}

@@ -28,8 +28,10 @@ export interface Toast {
 
 interface ToastContextValue {
   toasts: Toast[];
+  unreadCount: number;
   addToast: (toast: Omit<Toast, "id">) => string;
   removeToast: (id: string) => void;
+  markAllRead: () => void;
   success: (
     title: string,
     options?: Omit<Partial<Toast>, "id" | "title" | "type">,
@@ -67,12 +69,14 @@ const DEFAULT_DURATION = 5000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [unreadIds, setUnreadIds] = useState<string[]>([]);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+    setUnreadIds((prev) => prev.filter((unreadId) => unreadId !== id));
     const timer = timersRef.current.get(id);
     if (timer) {
       clearTimeout(timer);
@@ -87,6 +91,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const toast: Toast = { ...input, id };
 
       setToasts((prev) => [...prev, toast]);
+      setUnreadIds((prev) => [...prev, id]);
 
       if (toast.duration !== 0) {
         const ms = toast.duration ?? DEFAULT_DURATION;
@@ -103,7 +108,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     timersRef.current.forEach((timer) => clearTimeout(timer));
     timersRef.current.clear();
     setToasts([]);
+    setUnreadIds([]);
   }, []);
+
+  const markAllRead = useCallback(() => setUnreadIds([]), []);
 
   const success = useCallback(
     (title: string, options?: Omit<Partial<Toast>, "id" | "title" | "type">) =>
@@ -142,8 +150,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider
       value={{
         toasts,
+        unreadCount: unreadIds.length,
         addToast,
         removeToast,
+        markAllRead,
         success,
         error,
         warning,
@@ -165,4 +175,8 @@ export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used within a ToastProvider");
   return ctx;
+}
+
+export function useOptionalToast(): ToastContextValue | null {
+  return useContext(ToastContext);
 }

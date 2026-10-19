@@ -46,6 +46,7 @@ describe("SwapRoute", () => {
       <SwapRoute swaps={[SWAP]} statuses={["success"]} txHashes={["deadbeef"]} />,
     );
 
+    expect(screen.getByText("deadbeef")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /view on explorer/i });
     expect(link).toHaveAttribute(
       "href",
@@ -69,7 +70,7 @@ describe("SwapRoute", () => {
     expect(screen.getByText("boom")).toBeInTheDocument();
   });
 
-  // ─── Issue #739 acceptance criteria ─────────────────────────────────────────
+  // ─── Issues #739, #870 acceptance criteria ───────────────────────────────────
   it("renders the suggestion list with each swap's assets and amounts", () => {
     render(<SwapRoute swaps={[SWAP, { ...SWAP, from: "USDC", to: "BTC" }]} />);
 

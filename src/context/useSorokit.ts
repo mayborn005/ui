@@ -32,6 +32,7 @@ function buildSafeDefaults(): SorokitState {
     switchNetwork: async () => {},
     isSwitchingNetwork: false,
     resetTransactionWatchers: () => {},
+    registerWatcher: () => () => {},
     error: null,
     errorHistory: [],
     clearError: () => {},

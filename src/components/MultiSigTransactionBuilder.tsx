@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-
 import { Copy01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -129,7 +128,7 @@ export function MultiSigTransactionBuilder() {
   const [notes, setNotes] = useState("");
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [loadedMessage, setLoadedMessage] = useState<string | null>(null);
-  const { showToast } = useToast();
+  const { success: showSuccessToast } = useToast();
 
   const { totalWeight, valid } = useMemo(() => validateThreshold(signers, threshold), [signers, threshold]);
 
@@ -341,7 +340,7 @@ export function MultiSigTransactionBuilder() {
                   className="text-ink-3 hover:text-ink-2 h-auto py-1 px-2 text-[11px]"
                   onClick={() => {
                     navigator.clipboard.writeText(xdr).catch(() => {});
-                    showToast("XDR copied to clipboard", "success");
+                    showSuccessToast("XDR copied to clipboard");
                   }}
                   title="Copy XDR"
                   aria-label="Copy XDR to clipboard"

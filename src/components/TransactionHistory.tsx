@@ -344,8 +344,9 @@ export function TransactionHistory({
         });
     }, 0);
 
+    const activeFetchIdRef = fetchIdRef;
     return () => {
-      fetchIdRef.current++;
+      activeFetchIdRef.current++;
       window.clearTimeout(timerId);
     };
   }, [address, client, page]);

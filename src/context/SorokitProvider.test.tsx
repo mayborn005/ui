@@ -9,7 +9,7 @@ import { SorokitProvider } from "./SorokitProvider";
 import { useSorokit } from "./useSorokit";
 
 const TestComponent = () => {
-  const { address, account, balances, connectWallet, disconnectWallet, switchNetwork, refreshAccount, isLoadingAccount, isDisconnecting, error, walletError, errorHistory } = useSorokit();
+  const { address, account, balances, connectWallet, disconnectWallet, switchNetwork, refreshAccount, clearCustomNetworks, customNetworks, isLoadingAccount, isDisconnecting, error, walletError, errorHistory } = useSorokit();
 
   return (
     <div>
@@ -21,9 +21,11 @@ const TestComponent = () => {
       <div data-testid="isLoadingAccount">{isLoadingAccount ? "true" : "false"}</div>
       <div data-testid="isDisconnecting">{isDisconnecting ? "true" : "false"}</div>
       <div data-testid="errorHistoryCount">{errorHistory.length}</div>
+      <div data-testid="customNetworks">{customNetworks?.map((net) => net.name).join(",")}</div>
       <button onClick={() => connectWallet()}>Connect</button>
       <button onClick={() => disconnectWallet()}>Disconnect</button>
       <button onClick={() => switchNetwork("testnet")}>Switch</button>
+      <button onClick={() => clearCustomNetworks?.()}>Reset to Defaults</button>
       <button onClick={() => refreshAccount()}>Refresh</button>
     </div>
   );
@@ -326,6 +328,27 @@ describe("SorokitProvider", () => {
 
     beforeEach(() => {
       window.localStorage.clear();
+    });
+
+    it("removes persisted custom networks when resetting to defaults", () => {
+      window.localStorage.setItem(
+        "sorokit_custom_networks",
+        JSON.stringify([
+          {
+            name: "Local Dev",
+            rpcUrl: "https://rpc.example.com",
+            horizonUrl: "https://horizon.example.com",
+            passphrase: "Local Dev Network",
+          },
+        ]),
+      );
+      renderWithProvider(<TestComponent />, { client: mockClient });
+
+      expect(screen.getByTestId("customNetworks")).toHaveTextContent("Local Dev");
+      fireEvent.click(screen.getByText("Reset to Defaults"));
+
+      expect(window.localStorage.getItem("sorokit_custom_networks")).toBeNull();
+      expect(screen.getByTestId("customNetworks")).toBeEmptyDOMElement();
     });
 
     it("persists the selected network across reloads", async () => {
@@ -1139,6 +1162,101 @@ describe("SorokitProvider", () => {
       );
       expect(screen.getByTestId("error")).toHaveTextContent(
         'Cannot add custom network with built-in name "testnet".',
+      );
+    });
+  });
+
+  describe("errorHistory and clearError (#766)", () => {
+    const ErrorHistoryComponent = () => {
+      const {
+        connectWallet,
+        disconnectWallet,
+        clearError,
+        error,
+        errorHistory,
+      } = useSorokit();
+
+      return (
+        <div>
+          <div data-testid="error">{error || "none"}</div>
+          <div data-testid="errorHistory">{JSON.stringify(errorHistory)}</div>
+          <button onClick={() => connectWallet()}>Connect</button>
+          <button onClick={() => disconnectWallet()}>Disconnect</button>
+          <button onClick={() => clearError()}>Clear Error</button>
+        </div>
+      );
+    };
+
+    it("accumulates multiple sequential errors in errorHistory in order", async () => {
+      mockClient.wallet.connect = vi
+        .fn()
+        .mockResolvedValueOnce({ data: null, error: "First wallet error" })
+        .mockResolvedValueOnce({ data: null, error: "Second wallet error" });
+
+      renderWithProvider(<ErrorHistoryComponent />, { client: mockClient });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("Connect"));
+      });
+
+      expect(screen.getByTestId("errorHistory")).toHaveTextContent(
+        JSON.stringify(["First wallet error"]),
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("Connect"));
+      });
+
+      expect(screen.getByTestId("errorHistory")).toHaveTextContent(
+        JSON.stringify(["First wallet error", "Second wallet error"]),
+      );
+    });
+
+    it("disconnectWallet resets errorHistory to []", async () => {
+      mockClient.wallet.connect = vi
+        .fn()
+        .mockResolvedValueOnce({ data: null, error: "Connection error" });
+
+      renderWithProvider(<ErrorHistoryComponent />, { client: mockClient });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("Connect"));
+      });
+
+      expect(screen.getByTestId("errorHistory")).toHaveTextContent(
+        JSON.stringify(["Connection error"]),
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("Disconnect"));
+      });
+
+      expect(screen.getByTestId("errorHistory")).toHaveTextContent("[]");
+    });
+
+    it("clearError does not reset errorHistory", async () => {
+      mockClient.wallet.connect = vi
+        .fn()
+        .mockResolvedValueOnce({ data: null, error: "Some error" });
+
+      renderWithProvider(<ErrorHistoryComponent />, { client: mockClient });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("Connect"));
+      });
+
+      expect(screen.getByTestId("error")).toHaveTextContent("Some error");
+      expect(screen.getByTestId("errorHistory")).toHaveTextContent(
+        JSON.stringify(["Some error"]),
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("Clear Error"));
+      });
+
+      expect(screen.getByTestId("error")).toHaveTextContent("none");
+      expect(screen.getByTestId("errorHistory")).toHaveTextContent(
+        JSON.stringify(["Some error"]),
       );
     });
   });

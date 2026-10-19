@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSorokit } from "@/context/useSorokit";
@@ -99,12 +99,16 @@ describe("NetworkScreen — switch-in-flight disabling (#537)", () => {
       screen.getByRole("button", { name: /mainnet/i }),
     ).toHaveAttribute("aria-busy", "true");
 
+    // The deferred switch has to settle before the option can leave its busy
+    // state, so resolve it before waiting on aria-busy to flip back.
+    await act(async () => {
+      resolveSwitch?.(undefined);
+    });
+
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: /mainnet/i }),
       ).toHaveAttribute("aria-busy", "false");
     });
-
-    resolveSwitch?.(undefined);
   });
 });

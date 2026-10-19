@@ -1,10 +1,20 @@
-import { type ComponentType, lazy, Suspense, useCallback, useEffect, useState } from "react";
+import {
+  type ComponentType,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
+import { DashboardOverview } from "@/components/DashboardOverview";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GovernanceDashboard } from "@/components/GovernanceDashboard";
 import { NetworkBanner } from "@/components/NetworkBanner";
 import { type NavSection, Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
+import { PAGE_TITLES } from "@/lib/nav-labels";
 import { AccountScreen } from "@/screens/AccountScreen";
 import { WalletScreen } from "@/screens/WalletScreen";
 
@@ -38,20 +48,6 @@ const YieldFarmingScreen = lazy(() =>
     default: m.YieldFarmingScreen,
   })),
 );
-
-const PAGE_TITLES: Record<NavSection, string> = {
-  wallet: "Wallet — Sorokit",
-  account: "Account — Sorokit",
-  transactions: "Transactions — Sorokit",
-  soroban: "Soroban — Sorokit",
-  network: "Network — Sorokit",
-  recovery: "Recovery — Sorokit",
-  charts: "Charts — Sorokit",
-  farming: "Yield Farming — Sorokit",
-  budget: "Budget — Sorokit",
-  nfts: "NFTs — Sorokit",
-  governance: "Governance — Sorokit",
-};
 
 const SCREENS: Record<NavSection, ComponentType> = {
   wallet: WalletScreen,
@@ -141,6 +137,9 @@ export function Dashboard({
 
   const active = isControlled ? activeSection : internalActive;
 
+  // Keep the browser tab title in sync with the active screen (#551) — screen
+  // readers, multi-tab users and history entries all rely on it. Runs on mount
+  // as well, so the Wallet default is applied without waiting for a nav click.
   useEffect(() => {
     document.title = PAGE_TITLES[active];
   }, [active]);
@@ -156,13 +155,42 @@ export function Dashboard({
     setVisited((prev) => new Set(prev).add(active));
   }
 
+  // Move focus to the active section heading on navigation (#879).
+  const focusSectionHeading = useCallback((section: NavSection) => {
+    const wrapper = document.querySelector<HTMLElement>(
+      `[data-testid="screen-wrapper-${section}"]`,
+    );
+    if (!wrapper) return;
+    const heading = wrapper.querySelector<HTMLElement>(
+      "h1, h2, h3, h4, h5, h6, [role='heading']",
+    );
+    if (heading) {
+      if (!heading.hasAttribute("tabindex")) {
+        heading.setAttribute("tabindex", "-1");
+      }
+      heading.focus();
+    }
+  }, []);
+
+  const isFirstMount = useRef(true);
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    focusSectionHeading(active);
+  }, [active, focusSectionHeading]);
+
   const handleNavigate = useCallback(
     (section: NavSection) => {
       // In controlled mode the parent decides what renders next; only report.
       if (!isControlled) setInternalActive(section);
       onSectionChange?.(section);
+      if (section === active) {
+        focusSectionHeading(section);
+      }
     },
-    [isControlled, onSectionChange],
+    [isControlled, onSectionChange, active, focusSectionHeading],
   );
 
   return (
@@ -185,12 +213,14 @@ export function Dashboard({
             className="mx-auto px-6 py-8 sm:px-10 sm:py-10 min-h-[300px]"
             style={{ maxWidth: maxContentWidth }}
           >
+            <DashboardOverview onNavigate={handleNavigate} />
             {[...visited].map((section) => {
               const Screen = SCREENS[section];
               return (
                 <div
                   key={section}
                   hidden={section !== active}
+                  aria-hidden={section !== active}
                   data-testid={`screen-wrapper-${section}`}
                 >
                   <ErrorBoundary

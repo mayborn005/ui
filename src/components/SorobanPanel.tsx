@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useSorokit } from "@/context/useSorokit";
 
-import { ContractInteractionDebugger, type DebuggerEntry, addDebugHistory, createDebuggerEntry, readDebugHistory } from "./ContractInteractionDebugger";
+import { addDebugHistory, ContractInteractionDebugger, createDebuggerEntry, type DebuggerEntry, readDebugHistory } from "./ContractInteractionDebugger";
 
 type State = "idle" | "loading" | "success" | "error";
 
@@ -13,10 +13,11 @@ interface SorobanPanelProps {
   contractId: string;
   onContractIdChange: (contractId: string) => void;
   mode?: "invoke" | "simulate";
+  maxHistory?: number;
 }
 
 const CONTRACT_HISTORY_KEY = "sorokit-soroban-contract-history";
-const CONTRACT_HISTORY_LIMIT = 10;
+const DEFAULT_MAX_HISTORY = 20;
 const CONTRACT_HISTORY_DATALIST_ID = "sorokit-soroban-contract-history-list";
 
 function parseArgsInput(raw: string): {
@@ -47,23 +48,27 @@ function extractTxHash(data: unknown): string | null {
   return null;
 }
 
-function readContractHistory(): string[] {
+function readContractHistory(limit: number = DEFAULT_MAX_HISTORY): string[] {
   try {
     const raw = localStorage.getItem(CONTRACT_HISTORY_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === "string")
+      ? parsed.filter((id): id is string => typeof id === "string").slice(0, limit)
       : [];
   } catch {
     return [];
   }
 }
 
-function addContractToHistory(contractId: string, current: string[]): string[] {
+function addContractToHistory(
+  contractId: string,
+  current: string[],
+  limit: number = DEFAULT_MAX_HISTORY,
+): string[] {
   const next = [contractId, ...current.filter((id) => id !== contractId)].slice(
     0,
-    CONTRACT_HISTORY_LIMIT,
+    limit,
   );
   try {
     localStorage.setItem(CONTRACT_HISTORY_KEY, JSON.stringify(next));
@@ -86,6 +91,7 @@ export function SorobanPanel({
   contractId,
   onContractIdChange,
   mode = "invoke",
+  maxHistory = DEFAULT_MAX_HISTORY,
 }: SorobanPanelProps) {
   const { isConnected, address, client } = useSorokit();
   const [method, setMethod] = useState("");
@@ -96,7 +102,7 @@ export function SorobanPanel({
   const [error, setError] = useState<string | null>(null);
   const [curlCopied, setCurlCopied] = useState(false);
   const [contractHistory, setContractHistory] = useState<string[]>(() =>
-    readContractHistory(),
+    readContractHistory(maxHistory),
   );
   const [debugHistory, setDebugHistory] = useState<DebuggerEntry[]>(() =>
     readDebugHistory(),
@@ -176,7 +182,7 @@ export function SorobanPanel({
         setTxHash(extractTxHash(data));
         setState("success");
         setContractHistory((prev) =>
-          addContractToHistory(contractId.trim(), prev),
+          addContractToHistory(contractId.trim(), prev, maxHistory),
         );
         setDebugHistory((prev) => addDebugHistory(createDebuggerEntry({ contractId: contractId.trim(), method: method.trim(), args: parsedArgs, state: "success", result: data, txHash: extractTxHash(data) }), prev));
       } else {
@@ -197,7 +203,7 @@ export function SorobanPanel({
         setTxHash(extractTxHash(data));
         setState("success");
         setContractHistory((prev) =>
-          addContractToHistory(contractId.trim(), prev),
+          addContractToHistory(contractId.trim(), prev, maxHistory),
         );
         setDebugHistory((prev) => addDebugHistory(createDebuggerEntry({ contractId: contractId.trim(), method: method.trim(), args: parsedArgs, state: "success", result: data, txHash: extractTxHash(data) }), prev));
       }

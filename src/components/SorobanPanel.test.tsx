@@ -186,6 +186,39 @@ describe("SorobanPanel", () => {
     expect(textarea.rows).toBe(6);
   });
 
+  // Issue #543 — the Arguments textarea must be programmatically associated
+  // with its label, and its validation error with the field itself.
+  describe("arguments textarea accessibility", () => {
+    it("associates the label with the textarea via htmlFor and id", () => {
+      render(<SorobanPanel contractId="C123" onContractIdChange={() => {}} />);
+      const textarea = screen.getByRole("textbox", {
+        name: "Arguments (JSON array)",
+      });
+      expect(textarea.tagName).toBe("TEXTAREA");
+      expect(textarea.id).not.toBe("");
+
+      const label = screen.getByText("Arguments (JSON array)");
+      expect(label.tagName).toBe("LABEL");
+      expect(label).toHaveAttribute("for", textarea.id);
+    });
+
+    it("points aria-describedby at the error message when the JSON is invalid", () => {
+      render(<SorobanPanel contractId="C123" onContractIdChange={() => {}} />);
+      const textarea = screen.getByLabelText("Arguments (JSON array)");
+      expect(textarea).not.toHaveAttribute("aria-describedby");
+      expect(textarea).toHaveAttribute("aria-invalid", "false");
+
+      fireEvent.change(textarea, { target: { value: "[1, 2" } });
+
+      expect(textarea).toHaveAttribute("aria-invalid", "true");
+      const describedBy = textarea.getAttribute("aria-describedby");
+      expect(describedBy).toBeTruthy();
+      expect(document.getElementById(describedBy!)).toHaveTextContent(
+        "Invalid JSON in arguments",
+      );
+    });
+  });
+
   describe("simulate mode", () => {
     it("renders Simulate badge and subtitle", () => {
       render(<SorobanPanel contractId="C123" onContractIdChange={() => {}} mode="simulate" />);
@@ -243,7 +276,11 @@ describe("SorobanPanel", () => {
       const eleventh = `C${"B".repeat(55)}`;
       mockInvokeContract.mockResolvedValueOnce({ data: { ok: true }, error: null });
       render(
-        <SorobanPanel contractId={eleventh} onContractIdChange={() => {}} />,
+        <SorobanPanel
+          contractId={eleventh}
+          onContractIdChange={() => {}}
+          maxHistory={10}
+        />,
       );
       fireEvent.change(screen.getByLabelText("Method"), {
         target: { value: "balance" },
@@ -321,6 +358,48 @@ describe("SorobanPanel", () => {
         args: [],
         sourceAccount: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWNA",
       });
+    });
+
+    it("caps history at 20 by default and evicts the oldest entry when 21st contract is added", async () => {
+      mockInvokeContract.mockResolvedValue({ data: { ok: true }, error: null });
+      const { rerender } = render(<SorobanPanel contractId="C1" onContractIdChange={() => {}} />);
+      fireEvent.change(screen.getByLabelText("Method"), { target: { value: "test" } });
+
+      // Add 21 contracts sequentially
+      for (let i = 1; i <= 21; i++) {
+        const id = `C${i}`;
+        rerender(<SorobanPanel contractId={id} onContractIdChange={() => {}} />);
+        fireEvent.click(screen.getByRole("button", { name: /invoke/i }));
+        await screen.findByText("Result", { selector: "span" });
+        fireEvent.click(screen.getByRole("button", { name: /clear/i }));
+      }
+
+      const raw = localStorage.getItem("sorokit-soroban-contract-history");
+      const stored = JSON.parse(raw || "[]");
+      expect(stored.length).toBe(20);
+      expect(stored[0]).toBe("C21");
+      expect(stored).not.toContain("C1");
+    });
+
+    it("respects custom maxHistory prop", async () => {
+      mockInvokeContract.mockResolvedValue({ data: { ok: true }, error: null });
+      const { rerender } = render(<SorobanPanel contractId="C1" onContractIdChange={() => {}} maxHistory={5} />);
+      fireEvent.change(screen.getByLabelText("Method"), { target: { value: "test" } });
+
+      for (let i = 1; i <= 7; i++) {
+        const id = `C${i}`;
+        rerender(<SorobanPanel contractId={id} onContractIdChange={() => {}} maxHistory={5} />);
+        fireEvent.click(screen.getByRole("button", { name: /invoke/i }));
+        await screen.findByText("Result", { selector: "span" });
+        fireEvent.click(screen.getByRole("button", { name: /clear/i }));
+      }
+
+      const raw = localStorage.getItem("sorokit-soroban-contract-history");
+      const stored = JSON.parse(raw || "[]");
+      expect(stored.length).toBe(5);
+      expect(stored[0]).toBe("C7");
+      expect(stored).not.toContain("C1");
+      expect(stored).not.toContain("C2");
     });
   });
 

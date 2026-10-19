@@ -165,17 +165,17 @@ export function WalletConnectModal({
     onClose();
   }
 
-  function handleSelectWallet(wallet: WalletOption) {
+  const handleSelectWallet = useCallback((wallet: WalletOption) => {
     setSelectedWallet(wallet);
     if (isMobile && wallet.deepLink) {
       if (typeof window !== "undefined") {
-        // eslint-disable-next-line react-hooks/immutability
+         
         window.location.href = wallet.deepLink;
       }
     }
     setStep("connecting");
     void connectWallet();
-  }
+  }, [isMobile, connectWallet]);
 
   function handleRetry() {
     clearError();
@@ -195,7 +195,7 @@ export function WalletConnectModal({
       e.preventDefault();
       handleSelectWallet(walletOptions[focusedIndex]);
     }
-  }, [step, walletOptions, focusedIndex]);
+  }, [step, walletOptions, focusedIndex, handleSelectWallet]);
 
   // Focus the button when focusedIndex changes
   useEffect(() => {
@@ -277,13 +277,15 @@ export function WalletConnectModal({
                   <button
                     key={wallet.id}
                     type="button"
+                    role="radio"
+                    aria-checked={isFocused}
+                    tabIndex={isFocused ? 0 : -1}
                     ref={(el) => {
                       walletButtonsRef.current[index] = el;
                     }}
                     onClick={() => handleSelectWallet(wallet)}
                     onKeyDown={handleKeyDown}
-                    role="radio"
-                    aria-checked={isFocused}
+                    aria-label={wallet.name}
                     className="relative flex flex-col items-center gap-2 rounded-lg border border-line px-3 py-4 hover:border-line-2 hover:bg-surface-2 transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
                   >
                     {installed && (

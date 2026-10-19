@@ -103,9 +103,11 @@ describe('ClientAdapter', () => {
 describe('Happy-path flows (issue #814)', () => {
   const TEST_ADDRESS = 'GBAMQXTQ7IQKPZXJKZJQZJQZJQZJQZJQZJQZJQZJQZJQZJQZJQZJQZJQZJQ';
   const CONTRACT_ID = 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC';
+  let adapter: ClientAdapter;
 
   beforeEach(() => {
     vi.unstubAllGlobals();
+    adapter = createClientAdapter();
   });
 
   afterEach(() => {
@@ -207,6 +209,78 @@ describe('Happy-path flows (issue #814)', () => {
     const after = await adapter.invokeContract(CONTRACT_ID, 'balance', []);
     expect(after.status).toBe('error');
     expect(after.data).toBeNull();
+    expect(after.error).toContain('Not connected');
+  });
+
+  it('constructor-injected client is available after connect', async () => {
+    vi.stubGlobal('window', {
+      freighter: {
+        requestAccess: vi.fn(async () => ({})),
+        getPublicKey: vi.fn(async () => TEST_ADDRESS),
+      },
+    });
+
+    const invokeMock = vi.fn(async () => ({ value: 99 }));
+    const adapterWithClient = createClientAdapter({
+      invokeContract: invokeMock,
+      getEvents: vi.fn(),
+    });
+
+    await adapterWithClient.connect();
+    const result = await adapterWithClient.invokeContract(CONTRACT_ID, 'balance', []);
+    expect(result.status).toBe('success');
+    expect(result.data).toEqual({ value: 99 });
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('factory-injected client is created on connect', async () => {
+    vi.stubGlobal('window', {
+      freighter: {
+        requestAccess: vi.fn(async () => ({})),
+        getPublicKey: vi.fn(async () => TEST_ADDRESS),
+      },
+    });
+
+    const invokeMock = vi.fn(async () => ({ value: 77 }));
+    const factory = vi.fn(() => ({
+      invokeContract: invokeMock,
+      getEvents: vi.fn(),
+    }));
+
+    const adapterWithFactory = createClientAdapter(factory);
+
+    // Before connect, soroban is null
+    const before = await adapterWithFactory.invokeContract(CONTRACT_ID, 'balance', []);
+    expect(before.status).toBe('error');
+
+    await adapterWithFactory.connect();
+    expect(factory).toHaveBeenCalledTimes(1);
+
+    const after = await adapterWithFactory.invokeContract(CONTRACT_ID, 'balance', []);
+    expect(after.status).toBe('success');
+    expect(after.data).toEqual({ value: 77 });
+  });
+
+  it('disconnect clears the soroban reference', async () => {
+    vi.stubGlobal('window', {
+      freighter: {
+        requestAccess: vi.fn(async () => ({})),
+        getPublicKey: vi.fn(async () => TEST_ADDRESS),
+      },
+    });
+
+    const adapterWithClient = createClientAdapter({
+      invokeContract: vi.fn(async () => ({ ok: true })),
+      getEvents: vi.fn(async () => []),
+    });
+
+    await adapterWithClient.connect();
+    const before = await adapterWithClient.invokeContract(CONTRACT_ID, 'balance', []);
+    expect(before.status).toBe('success');
+
+    adapterWithClient.disconnect();
+    const after = await adapterWithClient.invokeContract(CONTRACT_ID, 'balance', []);
+    expect(after.status).toBe('error');
     expect(after.error).toContain('Not connected');
   });
 });

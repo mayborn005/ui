@@ -13,6 +13,7 @@ export interface AddressDisplayProps {
   className?: string;
   label?: string;
   onCopy?: () => void;
+  onCopyError?: () => void;
   size?: "sm" | "md" | "lg";
   masked?: boolean;
   mono?: boolean;
@@ -77,6 +78,7 @@ export function AddressDisplay({
   className,
   label,
   onCopy,
+  onCopyError,
   size = "md",
   masked = false,
   mono = false,
@@ -126,6 +128,7 @@ export function AddressDisplay({
     } else {
       setCopied(false);
       setCopyFailed(true);
+      onCopyError?.();
       resetTimerRef.current = setTimeout(() => setCopyFailed(false), FAILED_RESET_MS);
     }
   }

@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ContractInteractionDebugger, addDebugHistory, createDebuggerEntry } from "./ContractInteractionDebugger";
+import { addDebugHistory, ContractInteractionDebugger, createDebuggerEntry } from "./ContractInteractionDebugger";
 
 describe("ContractInteractionDebugger", () => {
   beforeEach(() => {
@@ -79,6 +79,42 @@ describe("ContractInteractionDebugger", () => {
     expect(screen.getByText(/config\.key2/i)).toBeInTheDocument();
   });
 
+  it("strips ANSI escape codes from snapshot diagnostics (#668)", () => {
+    render(
+      <ContractInteractionDebugger
+        contractId="C123"
+        method="log"
+        args={[]}
+        stateBefore={{ log: "\u001b[31mERROR\u001b[0m" }}
+        stateAfter={{ log: "done" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /show debugger/i }));
+
+    expect(screen.queryByText((content) => typeof content === "string" && content.includes("\u001b"))).not.toBeInTheDocument();
+    expect(screen.getAllByText(/ERROR/).length).toBeGreaterThan(0);
+  });
+
+  it("renders failed simulation details and the gas breakdown (#668)", () => {
+    render(
+      <ContractInteractionDebugger
+        contractId="C123"
+        method="transfer"
+        args={[]}
+        state="error"
+        result={{ error: "resource limit exceeded" }}
+        error="boom"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /show debugger/i }));
+
+    expect(screen.getByText("failed")).toBeInTheDocument();
+    expect(screen.getByText(/gas estimate/i)).toBeInTheDocument();
+    expect(screen.getByText(/cost breakdown/i)).toBeInTheDocument();
+  });
+
   it("copies values and stores recent invocations in session storage", async () => {
     render(
       <ContractInteractionDebugger
@@ -99,8 +135,14 @@ describe("ContractInteractionDebugger", () => {
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining("C123"));
 
+    // handleCopy awaits the clipboard write before recording the invocation, so
+    // the history entry lands in a microtask after the click; wait for it.
+    await waitFor(() => {
+      expect(
+        window.sessionStorage.getItem("sorokit-soroban-debug-history"),
+      ).toBeTruthy();
+    });
     const stored = window.sessionStorage.getItem("sorokit-soroban-debug-history");
-    expect(stored).toBeTruthy();
     const parsed = JSON.parse(stored ?? "[]");
     expect(parsed).toHaveLength(1);
     expect(parsed[0].contractId).toBe("C123");

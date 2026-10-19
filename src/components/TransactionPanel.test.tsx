@@ -206,7 +206,7 @@ describe("TransactionPanel", () => {
 
     // Type valid address
     fireEvent.change(destInput, { target: { value: VALID_DEST } });
-    expect(screen.getByText("Stellar address must be 56 characters")).toHaveClass("opacity-0");
+    expect(screen.queryByText("Stellar address must be 56 characters")).not.toBeInTheDocument();
     expect(submitBtn).not.toBeDisabled();
   });
 
@@ -369,9 +369,7 @@ describe("TransactionPanel", () => {
 
     // Type valid amount
     fireEvent.change(amountInput, { target: { value: "0.0000001" } });
-    expect(screen.getByText("Minimum amount is 0.0000001 XLM")).toHaveClass(
-      "opacity-0",
-    );
+    expect(screen.queryByText("Minimum amount is 0.0000001 XLM")).not.toBeInTheDocument();
     expect(submitBtn).not.toBeDisabled();
   });
 
@@ -398,7 +396,7 @@ describe("TransactionPanel", () => {
 
     // Type amount within balance
     fireEvent.change(amountInput, { target: { value: "5" } });
-    expect(screen.getByText("Insufficient balance")).toHaveClass("opacity-0");
+    expect(screen.queryByText("Insufficient balance")).not.toBeInTheDocument();
     expect(submitBtn).not.toBeDisabled();
   });
 

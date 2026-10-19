@@ -213,7 +213,7 @@ describe("NetworkBanner", () => {
 
     it("sets --banner-height via fallback when ResizeObserver is unavailable", () => {
       const originalResizeObserver = global.ResizeObserver;
-      // @ts-ignore
+      // @ts-expect-error - ResizeObserver is being set to undefined to test fallback behaviour
       global.ResizeObserver = undefined;
 
       try {

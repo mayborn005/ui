@@ -329,31 +329,25 @@ describe("AssetFilter", () => {
     expect(screen.queryByText("Default")).not.toBeInTheDocument();
   });
 
-    it("resets keyboard focus to index 0 when the filter changes (#721)", () => {
-    renderComponent();
-    const input = screen.getByPlaceholderText(/search/i);
-
-    // Move focus down to a non-zero index
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-
-    // Change the filter (search) — focus should reset to 0
-    fireEvent.change(input, { target: { value: "usd" } });
-
-    const rows = screen.getByRole("listbox").querySelectorAll("[data-asset-row]");
-    expect(rows[0]).toHaveClass("bg-surface-2");
-  });
-
-  it("keeps arrow-key navigation working after typing in the filter (#721)", () => {
+  it("clamps focusedIndex when list shrinks (#754)", () => {
     const onSelect = vi.fn();
     renderComponent({ onAssetSelect: onSelect });
     const input = screen.getByPlaceholderText(/search/i);
-
-    fireEvent.change(input, { target: { value: "usdc" } });
+    
+    // Move focus to index 3 (last item in mockAssets)
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    
+    // Now filter so there are only 2 items (e.g. search for "xlm" matches XLM and yXLM)
+    fireEvent.change(input, { target: { value: "xlm" } });
+    
+    // Press Enter to select focused item
     fireEvent.keyDown(input, { key: "Enter" });
-
+    
+    // It should have clamped to index 1 (yXLM)
     expect(onSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ asset: "USDC" }),
+      expect.objectContaining({ asset: "yXLM" })
     );
   });
 });

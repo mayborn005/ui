@@ -272,7 +272,10 @@ describe("TransactionHistoryTable", () => {
       // Verify first transaction row contains expected data
       expect(lines[1]).toContain("a0000000000000000000000000000000000000000000000000000000000000");
       expect(lines[1]).toContain("1000000");
-      expect(lines[1]).toContain("Success");
+      // The fixture marks every third transaction failed starting at index 0, so
+      // the first row is "Failed" and the row after it is the "Success" one.
+      expect(lines[1]).toContain("Failed");
+      expect(lines[2]).toContain("Success");
     });
   });
 });

@@ -3,8 +3,6 @@
  * validator list. Controlled: all state lives in the parent via ValidatorFilter.
  */
 
-import { useEffect, useRef, useState } from "react";
-
 import {
   Cancel01Icon,
   FilterHorizontalIcon,
@@ -12,6 +10,7 @@ import {
   SortingAZ01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import type { ValidatorFilter, ValidatorSortField } from "@/lib/staking";
@@ -57,11 +56,15 @@ export function ValidatorSearch({
   }
 
   const [localQuery, setLocalQuery] = useState(filter.query);
+  const [previousQuery, setPreviousQuery] = useState(filter.query);
   const debounceTimerRef = useRef<number | null>(null);
 
-  useEffect(() => {
+  // During-render sync: when the controlled filter.query changes externally,
+  // update localQuery immediately without going through an effect.
+  if (filter.query !== previousQuery) {
+    setPreviousQuery(filter.query);
     setLocalQuery(filter.query);
-  }, [filter.query]);
+  }
 
   function handleQueryChange(value: string) {
     setLocalQuery(value);

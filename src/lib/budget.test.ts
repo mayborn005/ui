@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { computeBudgetBreakdown } from "./budget";
+import { computeBudgetBreakdown, convertXlmToUsd, formatUtcDate } from "./budget";
 import type { Transaction } from "./client";
 
 const txs: Transaction[] = [
@@ -57,5 +57,30 @@ describe("computeBudgetBreakdown", () => {
     expect(breakdown.categories.reduce((sum, item) => sum + item.amount, 0)).toBe(
       225,
     );
+  });
+});
+
+describe("formatUtcDate", () => {
+  it("formats the UTC calendar date, not the local one", () => {
+    // Local-time formatting would print Dec 31, 2025 in timezones west of UTC.
+    expect(formatUtcDate("2026-01-01T00:00:00Z")).toBe("Jan 1, 2026");
+    expect(formatUtcDate("2026-03-15T23:59:59Z")).toBe("Mar 15, 2026");
+  });
+
+  it("returns a placeholder for invalid input", () => {
+    expect(formatUtcDate("not-a-date")).toBe("—");
+  });
+});
+
+describe("convertXlmToUsd", () => {
+  it("multiplies by the rate and rounds to cents", () => {
+    expect(convertXlmToUsd(1000, 0.12)).toBe(120);
+    expect(convertXlmToUsd(12.345, 0.12)).toBe(1.48);
+  });
+
+  it("returns 0 for invalid or negative input", () => {
+    expect(convertXlmToUsd(Number.NaN, 0.12)).toBe(0);
+    expect(convertXlmToUsd(-5, 0.12)).toBe(0);
+    expect(convertXlmToUsd(10, -1)).toBe(0);
   });
 });

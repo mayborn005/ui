@@ -145,7 +145,7 @@ export type { DelegationRowProps } from "./DelegationRow";
 export { DelegationRow } from "./DelegationRow";
 export { RebalancerHistory } from "./RebalancerHistory";
 export type { RewardHistoryProps } from "./RewardHistory";
-export { RewardHistory } from "./RewardHistory";
+export { generateRewardHistoryCsv, RewardHistory } from "./RewardHistory";
 export type { RewardsPanelProps } from "./RewardsPanel";
 export { RewardsPanel } from "./RewardsPanel";
 export type { StakingDashboardProps } from "./StakingDashboard";
@@ -210,8 +210,11 @@ export type {
 export {
   aggregateDailyRewards,
   createDefaultFilter,
+  DEFAULT_XLM_PRICE_USD,
   DELEGATION_BASE_FEE_STROOPS,
   estimateDelegationFeeXlm,
+  estimateHistoricalXlmPriceUsd,
+  estimateRewardUsdValue,
   filterValidators,
   /** @alias formatPct from staking lib */
   formatPct as formatStakingPct,

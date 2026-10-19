@@ -41,10 +41,18 @@ export interface SorokitState {
   isSwitchingNetwork?: boolean;
   customNetworks?: NetworkInfo[];
   addCustomNetwork?: (config: NetworkInfo) => Promise<void>;
+  clearCustomNetworks?: () => void;
   /**
    * Resets any pending transaction watchers/polling timers across the client context.
    */
   resetTransactionWatchers?: () => void;
+  /**
+   * Register a cancel callback for a polling timer. Returns an unregister
+   * function to call on unmount. Used by FeeEstimator, ContractEventFeed,
+   * TransactionStatusTracker, and GasOptimizer so that `resetTransactionWatchers`
+   * can stop all of them on network switch.
+   */
+  registerWatcher?: (cancel: () => void) => () => void;
   error: string | null;
   accountError?: string | null;
   networkError?: string | null;

@@ -26,14 +26,18 @@ export function useOutsideClick<T extends HTMLElement = HTMLElement>(
       handlerRef.current(event);
     };
 
-    document.addEventListener("pointerdown", listener);
-    document.addEventListener("touchstart", listener);
-    document.addEventListener("mousedown", listener);
+    // Capture phase + passive: iOS Safari never fires `click` for taps on
+    // non-interactive elements, and ancestors that stop propagation would
+    // otherwise swallow the event before it reaches `document`.
+    const options: AddEventListenerOptions = { capture: true, passive: true };
+    document.addEventListener("pointerdown", listener, options);
+    document.addEventListener("touchstart", listener, options);
+    document.addEventListener("mousedown", listener, options);
 
     return () => {
-      document.removeEventListener("pointerdown", listener);
-      document.removeEventListener("touchstart", listener);
-      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("pointerdown", listener, options);
+      document.removeEventListener("touchstart", listener, options);
+      document.removeEventListener("mousedown", listener, options);
     };
   }, [enabled]);
 
